@@ -1,0 +1,20 @@
+{
+  "name": "adisbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "dependencies": {
+    "date-bengali-revised": "^2.0.2",
+    "discord.js": "^14.15.3",
+    "moment-hijri": "^2.1.2",
+    "node-cron": "^3.0.3"
+  },
+  "author": "Zubair Ibn Zamir",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.1"
+}
