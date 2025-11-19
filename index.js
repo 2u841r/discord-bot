@@ -162,14 +162,13 @@ cron.schedule("0 6 * * *", () => {
   if (channel) channel.send(message);
 });
 
+
 // voiceStateUpdate
 client.on("voiceStateUpdate", async (oldState, newState) => {
   const logChannel = await client.channels.fetch(logChannelId);
   if (!logChannel) return;
-
   const member = newState.member;
   const displayName = member.user.displayName;
-
   const currentTime = new Date();
   const time = currentTime.toLocaleTimeString([], {
     hour: "2-digit",
@@ -177,29 +176,25 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     second: "2-digit",
     hour12: true,
   });
-
   // Ensure a record exists
   if (!userSessions.has(displayName)) {
     userSessions.set(displayName, {
       joinTime: null,
       channelName: null,
       totalMs: 0,
+      hasSwitched: false, // Track if user has switched channels
     });
   }
-
   let session = userSessions.get(displayName);
-
   // ---------------------------
   // USER JOINS A CHANNEL
   // ---------------------------
   if (!oldState.channel && newState.channel) {
     session.joinTime = currentTime.toISOString();
     session.channelName = newState.channel.name;
-
     const msg = `**${displayName}** has joined **${newState.channel.name}** at ${time}`;
     await logChannel.send(msg);
   }
-
   // ---------------------------
   // USER SWITCHED CHANNELS
   // ---------------------------
@@ -209,44 +204,41 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     oldState.channelId !== newState.channelId
   ) {
     const joinTime = new Date(session.joinTime);
-
     // Duration of the previous channel
     const prevMs = currentTime - joinTime;
     session.totalMs += prevMs;
-
+    session.hasSwitched = true; // Mark that user has switched
     const prevSession = new Date(prevMs).toISOString().slice(11, 19);
-
     const previousChannel = oldState.channel.name;
-
     // Reset for new channel
     session.joinTime = currentTime.toISOString();
     session.channelName = newState.channel.name;
-
-    const msg = `**${displayName}** switched from **${previousChannel}** to **${newState.channel.name}** at ${time} (previous session: ${prevSession})`;
+    const msg = `**${displayName}** switched from **${previousChannel}** to **${newState.channel.name}** at ${time} (session time: ${prevSession})`;
     await logChannel.send(msg);
   }
-
   // ---------------------------
   // USER LEFT ALL CHANNELS
   // ---------------------------
   else if (oldState.channel && !newState.channel) {
     if (session.joinTime) {
       const joinTime = new Date(session.joinTime);
-
       // Final session duration
       const sessionMs = currentTime - joinTime;
       session.totalMs += sessionMs;
-
       const sessionTime = new Date(sessionMs).toISOString().slice(11, 19);
-      const totalTime = new Date(session.totalMs)
-        .toISOString()
-        .slice(11, 19);
-
-      const msg = `**${displayName}** has left **${session.channelName}** at ${time} (session time: ${sessionTime}, total time: ${totalTime})`;
-
+      
+      let msg;
+      if (session.hasSwitched) {
+        // User switched channels - show both times
+        const totalTime = new Date(session.totalMs).toISOString().slice(11, 19);
+        msg = `**${displayName}** has left **${session.channelName}** at ${time} (session time: ${sessionTime}, total time: ${totalTime})`;
+      } else {
+        // User never switched - show only session time
+        msg = `**${displayName}** has left **${session.channelName}** at ${time} (session time: ${sessionTime})`;
+      }
+      
       // Clear session
       userSessions.delete(displayName);
-
       await logChannel.send(msg);
     } else {
       // Fallback (should not happen normally)
